@@ -44,10 +44,7 @@ const userSchema = new Schema({
     type: Boolean,
     default: false
   },
-  bmi: {
-    type: Number,
-    default: -1
-  },
+  bmi: Number,
   createdAt: {
     type: Date,
     default: Date.now
