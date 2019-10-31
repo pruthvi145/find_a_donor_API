@@ -1,17 +1,16 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-
+const { allowedCountryCodes } = require("../config/config");
 const OTPSchema = new Schema({
   phone: {
     type: String,
     required: true,
-    minlength: 10, //assuming the country is india
-    maxlength: 10,
     unique: true
   },
   countryCode: {
     type: String,
-    default: "91"
+    default: "91",
+    enum: allowedCountryCodes
   },
   code: {
     type: String,
@@ -20,6 +19,11 @@ const OTPSchema = new Schema({
   updateCount: {
     type: Number,
     default: 0
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    expires: 600 //delete OTP after 10 mins
   }
 });
 

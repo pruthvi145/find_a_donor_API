@@ -1,12 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const { check } = require("express-validator");
-//importing controller
+
+//importing validators
+const {
+  postSendcodeValidator,
+  postRegisterVerifyValidator
+} = require("../validators/usersValidator");
+//importing controllers
 const {
   getAllUserController,
   postSendcodeController,
   postRegisterVerifyController,
-  patchRegisterController
+  patchRegisterController,
+  deleteUserController,
+  deleteAllUsersController
 } = require("../controllers/usersController");
 
 //* Get all users
@@ -16,34 +24,20 @@ router.get("/", getAllUserController);
 
 //* Creating user
 // 1. sending OTP to the mobile number.
-router.post(
-  "/sendcode",
-  [
-    check("phone")
-      .not()
-      .isEmpty()
-      .withMessage("Phone number is required!")
-      .isMobilePhone("en-IN")
-      .withMessage("Invalid phone number!"),
-
-    check("countryCode")
-      .optional()
-      .isNumeric()
-      .withMessage("Invalid format of countryCode!")
-      .isIn(["91"])
-      .withMessage(
-        "Invalid countryCode - no service is avalible for this country!"
-      )
-  ],
-  postSendcodeController
-);
+router.post("/sendcode", postSendcodeValidator, postSendcodeController);
 
 // 2. verifying the OTP.
-router.post("/register/verify", postRegisterVerifyController);
+router.post(
+  "/register/verify",
+  postRegisterVerifyValidator,
+  postRegisterVerifyController
+);
 
 // 3. Continue the registration - save the addition required field.
 router.patch("/register", patchRegisterController);
 
 //* Delete one user.
+router.delete("/:id", deleteUserController);
 //* Delete all users.
+router.delete("/", deleteAllUsersController);
 module.exports = router;

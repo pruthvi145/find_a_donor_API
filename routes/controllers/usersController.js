@@ -1,43 +1,38 @@
 const User = require("../../models/User");
-const { validationResult } = require("express-validator");
-const axios = require("axios");
 const OTP = require("../../models/OTP");
-const generateOTP = (otpLength = 6) => {
-  const digits = "0123456789";
-  let otp = "";
-
-  for (let i = 1; i <= otpLength; i++) {
-    const index = Math.floor(Math.random() * digits.length);
-    otp = otp + digits[index];
-  }
-
-  return otp;
-};
-
-const sendSMS = async (phoneWithCountryCode, otp) => {
-  const baseURL = "https://platform.clickatell.com/messages/http/send";
-  const apiKey = process.env.CLICKATELL_API_KEY;
-  const message = `${otp} is your verification code for Find A Donor app.\nValid upto 10 minutes.`;
-  return await axios.get(baseURL, {
-    params: {
-      apiKey,
-      to: phoneWithCountryCode,
-      content: message
-    }
-  });
+const mongoose = require("mongoose");
+const generateOTP = require("../../utils/helpers/generateOTP");
+const { sendSMS } = require("../../utils/helpers/clickatellAPI");
+const { OTPlength } = require("../../config/config");
+const { invalidInputError } = require("../middlewares/errors");
+//Standered response for our API
+const stdResponse = {
+  status:
+    "success" || "failed" || "denied" || "not found" || "pending" || "invalid",
+  statusCode: 200 || 500 || 403 || 404 || 202 || 422,
+  msg: "<MESSAGE>" || null,
+  data: {},
+  errors: [{ msg: "<ERROR MESSAGES>" }] || null,
+  url: "<REQUESTED URL>",
+  createdAt: new Date()
 };
 
 module.exports.getAllUserController = async (req, res) => {
   const users = await User.find();
   //getting all users.
-  res.json({ users });
+  return res.json({
+    status: "success",
+    statusCode: 200,
+    msg: "Fetched all users successfully!",
+    data: { users },
+    errors: null,
+    url: req.fullUrl,
+    createdAt: new Date()
+  });
 };
 
 module.exports.postSendcodeController = async (req, res, next) => {
   // verify user inputs - using express - validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty())
-    return res.status(422).json({ errors: errors.array() });
 
   // extract information
   const { phone } = req.body;
@@ -56,7 +51,7 @@ module.exports.postSendcodeController = async (req, res, next) => {
     }
 
     // generate OTP
-    const otp = generateOTP(6); // OTP of 6 digits
+    const otp = generateOTP(OTPlength); // OTP of 6 digits
 
     // send OTP with any third pary messaging API
     messageResponse = await sendSMS(countryCode + phone, otp);
@@ -80,17 +75,99 @@ module.exports.postSendcodeController = async (req, res, next) => {
     }
     // send Response
     return res.json({
-      msg: `Verification code is sent to the +${countryCode}${phone}`
+      status: "success",
+      statusCode: 202,
+      msg: `Verification code is sent to the +${countryCode}${phone}.`,
+      data: {},
+      errors: null,
+      url: req.fullUrl,
+      createdAt: new Date()
     });
   } catch (ex) {
     next(ex);
   }
 };
 
-module.exports.postRegisterVerifyController = (req, res) => {
-  res.send("Verify Registeration.");
+module.exports.postRegisterVerifyController = async (req, res) => {
+  //verifying the user inputs - done
+
+  // extract information
+  const { phone, code } = req.body;
+  const countryCode = req.body.countryCode || "91";
+  try {
+    //check if valid otp
+    const user = await User.findOne({ phone, countryCode });
+    const otp = await OTP.findOne({ phone, countryCode, code });
+
+    if (!user || !otp) {
+      return invalidInputError(
+        [{ msg: "Invalid phone or verification code!" }],
+        req,
+        res
+      );
+    }
+    //update user to verified
+    if (user.isVerified === false) {
+      await user.updateOne({ isVerified: true });
+    }
+    // delete otp
+    await OTP.deleteOne({ _id: otp._id });
+
+    //generate auth token
+    const token = user.generateAuthToken();
+
+    //send response with token
+
+    return res.header("Authorization", token).json({
+      status: "success",
+      statusCode: 200,
+      msg: "User verified successfully!",
+      data: {},
+      errors: null,
+      url: req.fullUrl,
+      createdAt: new Date()
+    });
+  } catch (ex) {
+    next(ex);
+  }
 };
 
 module.exports.patchRegisterController = (req, res) => {
   res.send("Continuing the remainging registration.");
+};
+
+module.exports.deleteAllUsersController = async (req, res, next) => {
+  try {
+    const deleteRes = await User.deleteMany({});
+    return res.json({
+      status: "success",
+      statusCode: 200,
+      msg: "Deleted all users successfully!",
+      data: { deletedCount: deleteRes.deletedCount },
+      errors: null,
+      url: req.fullUrl,
+      createdAt: new Date()
+    });
+  } catch (ex) {
+    next(ex);
+  }
+};
+module.exports.deleteUserController = async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return invalidInputError([{ msg: "Invalid user ID!" }]);
+    }
+    const deleteRes = await User.deleteOne({ _id: req.params.id });
+    return res.json({
+      status: "success",
+      statusCode: 200,
+      msg: "Deleted a user successfully!",
+      data: { deletedCount: deleteRes.deletedCount },
+      errors: null,
+      url: req.fullUrl,
+      createdAt: new Date()
+    });
+  } catch (ex) {
+    next(ex);
+  }
 };

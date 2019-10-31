@@ -1,5 +1,11 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
+const jwt = require("jsonwebtoken");
+const {
+  allowedCountryCodes,
+  allowedUserRoles,
+  allowedBloodGroups
+} = require("../config/config");
 
 const userSchema = new Schema({
   name: {
@@ -8,23 +14,22 @@ const userSchema = new Schema({
   phone: {
     type: String,
     required: true,
-    minlength: 10, //assuming the country is india
-    maxlength: 10,
     unique: true
   },
   countryCode: {
     type: String,
-    default: "91"
+    default: "91",
+    enum: allowedCountryCodes
   },
   password: String,
   isVerified: {
-    type: String,
+    type: Boolean,
     default: false
   },
   role: {
     type: String,
     default: "user",
-    enum: ["user", "admin", "super-admin"]
+    enum: allowedUserRoles
   },
   dob: {
     type: Date,
@@ -38,7 +43,7 @@ const userSchema = new Schema({
   //considering ABO system
   bloodGroup: {
     type: String,
-    enum: ["A+", "B+", "O+", "AB+", "A-", "B-", "O-", "AB-"],
+    enum: allowedBloodGroups,
     default: "B+" //becuase the most common one
   },
   isDonor: {
@@ -55,7 +60,18 @@ const userSchema = new Schema({
     default: Date.now
   }
 });
-// TODO: add middleware for automatically update the updatedAt and creadtedAt field.
+
+//change the update time automatically!
+userSchema.pre("updateOne", function() {
+  this.set({ updatedAt: new Date() });
+});
+
+//genrating auth token
+userSchema.methods.generateAuthToken = function() {
+  const payload = { user: this._id, role: this.role };
+  return jwt.sign(payload, process.env.SECRETE_KEY);
+};
+
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;
