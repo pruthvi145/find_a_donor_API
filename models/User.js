@@ -9,7 +9,8 @@ const userSchema = new Schema({
     type: String,
     required: true,
     minlength: 10, //assuming the country is india
-    maxlength: 10
+    maxlength: 10,
+    unique: true
   },
   countryCode: {
     type: String,
