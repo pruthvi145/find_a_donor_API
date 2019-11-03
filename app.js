@@ -13,7 +13,7 @@ connectDB();
 
 //importing middlewares
 const injectFullUrl = require("./routes/middlewares/injectFullUrl");
-const { errorHandler } = require("./routes/middlewares/errors");
+const { errorHandler } = require("./routes/middlewares/error");
 
 //importing routes
 const indexRoute = require("./routes/endpoints/index");
