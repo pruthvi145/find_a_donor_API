@@ -22,8 +22,8 @@ const OTPSchema = new Schema({
   },
   createdAt: {
     type: Date,
-    default: Date.now,
-    expires: 600 //delete OTP after 10 mins
+    expires: 600, //delete OTP after 10 mins
+    default: Date.now
   }
 });
 

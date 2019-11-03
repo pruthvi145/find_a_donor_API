@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
-module.exports = connectionString => {
+module.exports = () => {
+  const connectionString =
+    process.env.NODE_ENV === "production"
+      ? process.env.MONGO_CONNECT
+      : process.env.MONGO_CONNECT_TEST;
+
   mongoose
     .connect(connectionString, {
       useNewUrlParser: true,

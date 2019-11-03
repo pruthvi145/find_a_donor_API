@@ -1,37 +1,45 @@
-//setting up environment variables
-require("dotenv").config();
+const dotenv = require("dotenv");
 const express = require("express");
+const connectDB = require("./config/db");
+
+//Load the env variables
+dotenv.config();
+
+// Intializing express
 const app = express();
-const db = require("./config/db");
 
 //connectig to the database
-const connectionString =
-  process.env.NODE_ENV === "production"
-    ? process.env.MONGO_CONNECT
-    : process.env.MONGO_CONNECT_TEST;
-
-db(connectionString);
+connectDB();
 
 //importing middlewares
 const injectFullUrl = require("./routes/middlewares/injectFullUrl");
-const { netWorkError } = require("./routes/middlewares/errors");
+const { errorHandler } = require("./routes/middlewares/errors");
+
 //importing routes
 const indexRoute = require("./routes/endpoints/index");
+const authRoute = require("./routes/endpoints/auth");
 const usersRoute = require("./routes/endpoints/users");
 const otpsRoute = require("./routes/endpoints/otps");
 
-//middlewares
+//Pre middlewares
 app.use(express.json());
 app.use(injectFullUrl);
-//setting up routes
+
+//mounting routes
 app.use("/", indexRoute);
-app.use("/api/users", usersRoute);
-app.use("/api/otps", otpsRoute);
-//error - middleware
-app.use(netWorkError);
+
+//  /api/v1
+app.use("/api/v1/auth", authRoute);
+app.use("/api/v1/users", usersRoute);
+app.use("/api/v1/otps", otpsRoute);
+
+//errorHandler:  Post middlewares
+app.use(errorHandler);
 
 //server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}...`));
 
-module.exports = app;
+process.on("unhandledRejection", (err, promise) => {
+  console.log(`Error: ${err.message}`);
+});

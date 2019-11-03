@@ -1,11 +1,14 @@
 const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+
 const {
   allowedCountryCodes,
   allowedUserRoles,
   allowedBloodGroups
 } = require("../config/config");
+
+const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
   name: {
@@ -66,12 +69,26 @@ userSchema.pre("updateOne", function() {
   this.set({ updatedAt: new Date() });
 });
 
-//genrating auth token
-userSchema.methods.generateAuthToken = function() {
-  const payload = { user: this._id, role: this.role };
-  return jwt.sign(payload, process.env.SECRETE_KEY);
+// Encrypt password
+userSchema.pre("save", async function(next) {
+  if (!this.isModified("password")) {
+    next();
+  }
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+userSchema.methods.matchPassword = async function(enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// genrating auth token
+userSchema.methods.generateAuthToken = function() {
+  const payload = { user: { id: this._id } };
+  return jwt.sign(payload, process.env.SECRETE_KEY, { expiresIn: "7d" });
+};
+
+// Model
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;
